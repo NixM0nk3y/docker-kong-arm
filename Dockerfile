@@ -56,6 +56,7 @@ LABEL resty_config_options_more="${RESTY_CONFIG_OPTIONS_MORE}"
 ARG _RESTY_CONFIG_DEPS=""
 
 COPY patches/00ipv6_resolver.patch /tmp/00ipv6_resolver.patch
+COPY patches/01ipv6_kong_dns_aaaa_support.patch /tmp/01ipv6_kong_dns_aaaa_support.patch
 
 RUN apk add --no-cache --virtual .build-deps \
         build-base \
@@ -111,6 +112,7 @@ RUN apk add --no-cache --virtual .build-deps \
     && echo "${KONG_SHA256}  kong-${KONG_VERSION}.tar.gz" | sha256sum -c - \
     && tar xzf kong-${KONG_VERSION}.tar.gz \
     && cd /tmp/kong-${KONG_VERSION} \
+    && patch -p1 < /tmp/01ipv6_kong_dns_aaaa_support.patch \
     && /usr/local/openresty/luajit/bin/luarocks make \
     && make install \
     && cp bin/kong /usr/local/bin/kong \

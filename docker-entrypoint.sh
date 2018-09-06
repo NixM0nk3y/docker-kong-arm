@@ -5,7 +5,7 @@ export KONG_NGINX_DAEMON=off
 export KONG_ANONYMOUS_REPORTS=false
 export KONG_HTTP2=on 
 export KONG_PROXY_LISTEN='[::]:80, [::]:443 http2 ssl' 
-export KONG_ADMIN_LISTEN='[::]:444 http2 ssl'
+export KONG_ADMIN_LISTEN='[::]:444 ssl'
 
 if [[ "$1" == "kong" ]]; then
   PREFIX=${KONG_PREFIX:=/usr/local/kong}

@@ -55,6 +55,8 @@ LABEL resty_config_options_more="${RESTY_CONFIG_OPTIONS_MORE}"
 # These are not intended to be user-specified
 ARG _RESTY_CONFIG_DEPS=""
 
+COPY patches/00ipv6_resolver.patch /tmp/00ipv6_resolver.patch
+
 RUN apk add --no-cache --virtual .build-deps \
         build-base \
         git \
@@ -85,6 +87,7 @@ RUN apk add --no-cache --virtual .build-deps \
     && echo "${RESTY_SHA256}  openresty-${RESTY_VERSION}.tar.gz" | sha256sum -c - \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
     && cd /tmp/openresty-${RESTY_VERSION} \
+    && patch -p1 < /tmp/00ipv6_resolver.patch \
     && ./configure -j${RESTY_J} ${_RESTY_CONFIG_DEPS} ${RESTY_CONFIG_OPTIONS} ${RESTY_CONFIG_OPTIONS_MORE} \
     && make -j${RESTY_J} \
     && make -j${RESTY_J} install \

@@ -142,7 +142,7 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
-EXPOSE 80 443 444
+EXPOSE 80 443 8080 8443
 
 STOPSIGNAL SIGTERM
 

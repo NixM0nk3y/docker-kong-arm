@@ -2,18 +2,21 @@
 #
 #
 
-FROM arm32v6/alpine:3.8
+FROM arm32v6/alpine:3.11.6
 
 LABEL maintainer="Nick Gregory <docker@openenterprise.co.uk>"
 
-ARG KONG_VERSION="0.14.1"
-ARG KONG_SHA256="945a90568838ffb7ee89e6816576a26aae0e860b5ff0a4c396f4299062eb0001"
+ARG KONG_VERSION="master"
+ARG KONG_REPO="https://github.com/NixM0nk3y/kong.git"
 
-ARG LUAROCKS_VERSION="2.4.4"
-ARG LUAROCKS_SHA256="3938df33de33752ff2c526e604410af3dceb4b7ff06a770bc4a240de80a1f934"
+ARG LUAROCKS_VERSION="3.3.1"
+ARG LUAROCKS_SHA256="eb20cd9814df05535d9aae98da532217c590fc07d48d90ca237e2a7cdcf284fe"
 
-ARG RESTY_VERSION="1.13.6.2"
-ARG RESTY_SHA256="946e1958273032db43833982e2cec0766154a9b5cb8e67868944113208ff2942"
+ARG RESTY_VERSION="1.15.8.3"
+ARG RESTY_SHA256="b68cf3aa7878db16771c96d9af9887ce11f3e96a1e5e68755637ecaff75134a8"
+
+ARG KONG_TLS_VERSION="0.0.6"
+ARG KONG_TLS_SHA256="70aa3011ae95ae343e61dbe5f3f04609e3e7785a3f48de81f64ca95b048ff66e"
 
 ARG RESTY_J="3"
 ARG RESTY_CONFIG_OPTIONS="\
@@ -56,7 +59,6 @@ LABEL resty_config_options_more="${RESTY_CONFIG_OPTIONS_MORE}"
 ARG _RESTY_CONFIG_DEPS=""
 
 COPY patches/00ipv6_resolver.patch /tmp/00ipv6_resolver.patch
-COPY patches/01ipv6_kong_dns_aaaa_support.patch /tmp/01ipv6_kong_dns_aaaa_support.patch
 
 RUN apk add --no-cache --virtual .build-deps \
         build-base \
@@ -68,6 +70,7 @@ RUN apk add --no-cache --virtual .build-deps \
         openssl-dev \
         geoip-dev \
         libxslt-dev \
+        yaml-dev \
         linux-headers \
         make \
         perl-dev \
@@ -81,7 +84,9 @@ RUN apk add --no-cache --virtual .build-deps \
         pcre \
         libgcc \
         libxslt \
+        yaml \
         zlib \
+        unzip \
     && cd /tmp \
     && echo "==> Downloading OpenResty..." \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
@@ -94,7 +99,7 @@ RUN apk add --no-cache --virtual .build-deps \
     && make -j${RESTY_J} install \
     && cd /tmp \
     && echo "==> Downloading LuaRocks..." \
-    && curl -fSL https://luarocks.org/releases/luarocks-${LUAROCKS_VERSION}.tar.gz -o luarocks-${LUAROCKS_VERSION}.tar.gz \
+    && curl -vfSL https://luarocks.github.io/luarocks/releases/luarocks-${LUAROCKS_VERSION}.tar.gz -o luarocks-${LUAROCKS_VERSION}.tar.gz \
     && echo "${LUAROCKS_SHA256}  luarocks-${LUAROCKS_VERSION}.tar.gz" | sha256sum -c - \
     && tar xzf luarocks-${LUAROCKS_VERSION}.tar.gz \
     && cd /tmp/luarocks-${LUAROCKS_VERSION} \
@@ -107,27 +112,35 @@ RUN apk add --no-cache --virtual .build-deps \
     && ln -s /usr/local/openresty/luajit/bin/luajit /usr/local/bin/lua \
     && export PATH=$PATH:/usr/local/openresty/luajit/bin:/usr/local/openresty/nginx/sbin:/usr/local/openresty/bin \
     && cd /tmp \
-    && echo "==> Downloading Kong..." \
-    && curl -fSL https://github.com/Kong/kong/archive/${KONG_VERSION}.tar.gz -o kong-${KONG_VERSION}.tar.gz \
-    && echo "${KONG_SHA256}  kong-${KONG_VERSION}.tar.gz" | sha256sum -c - \
-    && tar xzf kong-${KONG_VERSION}.tar.gz \
-    && cd /tmp/kong-${KONG_VERSION} \
-    && patch -p1 < /tmp/01ipv6_kong_dns_aaaa_support.patch \
+    && echo "==> Checking Out Kong..." \
+    && git clone ${KONG_REPO} \
+    && cd kong \
+    && git checkout ${KONG_VERSION} \
     && /usr/local/openresty/luajit/bin/luarocks make \
     && make install \
     && cp bin/kong /usr/local/bin/kong \
     && chmod 755 /usr/local/bin/kong \
+    && cd /tmp \
+    && echo "==> Kong TLS module..." \
+    && curl -fSL https://github.com/Kong/lua-kong-nginx-module/archive/${KONG_TLS_VERSION}.tar.gz -o lua-kong-nginx-module-${KONG_TLS_VERSION}.tar.gz \
+    && echo "${KONG_TLS_SHA256}  lua-kong-nginx-module-${KONG_TLS_VERSION}.tar.gz" | sha256sum -c - \
+    && tar xzf lua-kong-nginx-module-${KONG_TLS_VERSION}.tar.gz \
+    && cd /tmp/lua-kong-nginx-module-${KONG_TLS_VERSION} \
+    && LUA_LIB_DIR=/usr/local/openresty/lualib make install \
     && cd /tmp \
     && echo "==> IPv6 Capable luasocket..." \
     && curl -fSL https://github.com/diegonehab/luasocket/archive/master.tar.gz -o luasocket-master.tar.gz \
     && tar xzf luasocket-master.tar.gz \
     && cd /tmp/luasocket-master \
     && /usr/local/openresty/luajit/bin/luarocks make \
+    && echo "==> Securing PGmoon..." \
+    && sed -i.old -e 's/tlsv1/tlsv1_2/' /usr/local/openresty/luajit/share/lua/5.1/pgmoon/socket.lua \
     && cd /tmp \
     && rm -rf \
         openresty-${RESTY_VERSION}.tar.gz openresty-${RESTY_VERSION} \
         luarocks-${LUAROCKS_VERSION}.tar.gz luarocks-${LUAROCKS_VERSION} \
-        kong-${KONG_VERSION}.tar.gz kong-${KONG_VERSION} \
+        kong \
+        lua-kong-nginx-module-${KONG_TLS_VERSION}.tar.gz lua-kong-nginx-module-${KONG_TLS_VERSION} \
         luasocket-master.tar.gz luasocket-master \
     && apk del .build-deps \
     && rm -rf /var/cache/apk/* \

@@ -4,6 +4,7 @@ set -e
 export KONG_NGINX_DAEMON=off
 export KONG_ANONYMOUS_REPORTS=false
 export KONG_SERVER_TOKENS=off
+export KONG_LUA_SSL_TRUSTED_CERTIFICATE=/etc/ssl/certs/ca-certificates.crt
 export KONG_HTTP2=on 
 export KONG_PROXY_LISTEN='[::]:80, [::]:443 http2 ssl' 
 export KONG_ADMIN_LISTEN='[::]:8080, [::]:8443 ssl'

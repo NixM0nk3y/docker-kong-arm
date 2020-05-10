@@ -86,6 +86,7 @@ RUN apk add --no-cache --virtual .build-deps \
         libxslt \
         yaml \
         zlib \
+        ca-certificates \
         unzip \
     && cd /tmp \
     && echo "==> Downloading OpenResty..." \
@@ -144,6 +145,7 @@ RUN apk add --no-cache --virtual .build-deps \
         luasocket-master.tar.gz luasocket-master \
     && apk del .build-deps \
     && rm -rf /var/cache/apk/* \
+    && /usr/sbin/update-ca-certificates \
     && mkdir -p /usr/local/kong/logs \
     && ln -sf /dev/stdout /usr/local/kong/logs/access.log \
     && ln -sf /dev/stderr /usr/local/kong/logs/error.log
